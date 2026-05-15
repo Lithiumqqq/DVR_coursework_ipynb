@@ -1,0 +1,147 @@
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import eigh
+
+
+# ПАРАМЕТРЫ ЗАДАЧИ
+
+N = 50          
+L = 1.0         
+hbar = 1.0
+m = 1.0
+
+
+
+x = np.array([(j + 1) * L / (N + 1) for j in range(N)])
+
+# шаг сетки
+dx = L / (N + 1)
+
+
+
+def V(x):
+    return 0.0
+
+V_diag = np.array([V(xj) for xj in x])
+
+
+
+j = np.arange(1, N + 1)
+n = np.arange(1, N + 1)
+
+U = np.sqrt(2 / (N + 1)) * np.sin(
+    np.pi * np.outer(j, n) / (N + 1)
+)
+
+T_diag = (hbar**2 / (2 * m)) * (
+    (np.pi**2 * n**2) / (L**2)
+)
+
+
+T = U @ np.diag(T_diag) @ U.T
+
+
+V_matrix = np.diag(V_diag)
+
+
+H = T + V_matrix
+
+
+energies, psi = eigh(H)
+
+
+n_levels = 10
+
+E_exact = np.array([
+    (np.pi**2 * n**2) / (2 * L**2)
+    for n in range(1, n_levels + 1)
+])
+
+print("Первые уровни энергии:\n")
+
+print(f"{'n':<10}{'DVR':<20}{'Точное':<20}{'Ошибка'}")
+
+for n in range(n_levels):
+
+    err = abs(energies[n] - E_exact[n])
+
+    print(f"{n+1:<10}"
+          f"{energies[n]:<20.10f}"
+          f"{E_exact[n]:<20.10f}"
+          f"{err:.3e}")
+
+
+
+for n in range(n_levels):
+    norm = np.sqrt(np.trapezoid(np.abs(psi[:, n])**2, x))
+    psi[:, n] /= norm
+
+
+plt.figure(figsize=(10, 6))
+
+for n in range(4):
+
+    plt.plot(
+        x,
+        psi[:, n] + energies[n],
+        label=f'n = {n+1}'
+    )
+
+plt.xlabel("x")
+plt.ylabel("E")
+plt.title("Первые волновые функции (DVR)")
+plt.grid(True)
+plt.legend()
+
+plt.show()
+
+# ------------------------------------------------------------
+# ТАБЛИЦА СХОДИМОСТИ ЭНЕРГИИ ОСНОВНОГО СОСТОЯНИЯ
+# ------------------------------------------------------------
+
+def build_T(N, L, hbar=1.0, m=1.0):
+
+    j = np.arange(1, N + 1)
+    n = np.arange(1, N + 1)
+
+    U = np.sqrt(2 / (N + 1)) * np.sin(
+        np.pi * np.outer(j, n) / (N + 1)
+    )
+
+    T_diag = (hbar**2 / (2 * m)) * (
+        (np.pi**2 * n**2) / (L**2)
+    )
+
+    return U @ np.diag(T_diag) @ U.T
+
+
+# точное значение энергии основного состояния
+E1_exact = (np.pi**2) / (2 * L**2)
+
+# значения N
+N_range = [10, 20, 30, 40, 50, 60, 80, 100]
+
+print("\nСходимость энергии основного состояния\n")
+
+print(f"{'N':<10}"
+      f"{'E1 (DVR)':<20}"
+      f"{'E1 exact':<20}"
+      f"{'Отн. ошибка'}")
+
+for Ni in N_range:
+
+    # гамильтониан
+    Ti = build_T(Ni, L, hbar, m)
+    Hi = Ti
+
+    # основное состояние
+    E1_num = eigh(Hi, eigvals_only=True)[0]
+
+    # относительная ошибка
+    rel_error = abs(E1_num - E1_exact) / E1_exact
+
+    print(f"{Ni:<10}"
+          f"{E1_num:<20.12f}"
+          f"{E1_exact:<20.12f}"
+          f"{rel_error:.3e}")
